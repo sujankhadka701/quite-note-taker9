@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>📝 Quick Note Taker</title>
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="app">
+        <aside id="sidebar">
+            <div class="sidebar-header">
+                <h2>📝 Note Taker</h2>
+            </div>
+            
+            <!-- Sidebar Tabs for Active Notes vs Trash Bin -->
+            <div class="sidebar-tabs">
+                <button id="tab-notes" class="active">📝 Notes</button>
+                <button id="tab-trash">🗑️ Trash Bin</button>
+            </div>
+
+            <button id="new-note">➕ New Note</button>
+            <input type="text" id="search" placeholder="🔍 Search notes...">
+            <div id="notes-list"></div>
+            
+            <button id="delete-all" class="danger">🗑️ Delete All</button>
+            <button id="toggle-dark">🌙 Toggle Dark Mode</button>
+        </aside>
+
+        <div id="editor">
+            <!-- Trash Banner for trashed notes -->
+            <div id="trash-banner" style="display: none;">
+                <span>🗑️ This note is in the Trash.</span>
+                <div class="trash-banner-actions">
+                    <button id="banner-restore">♻️ Restore Note</button>
+                    <button id="banner-delete-perm" class="danger-btn">🗑️ Delete Permanently</button>
+                </div>
+            </div>
+
+            <h1>📝 Quick Note Taker</h1>
+
+            <input id="note-title" type="text" placeholder="Note title">
+            
+            <!-- Rich Text Editor Toolbar -->
+            <div id="toolbar">
+                <button id="format-bold" class="tool-btn" title="Bold (Ctrl+B)"><b>B</b></button>
+                <button id="format-italic" class="tool-btn" title="Italic (Ctrl+I)"><i>I</i></button>
+                <button id="format-underline" class="tool-btn" title="Underline (Ctrl+U)"><u>U</u></button>
+            </div>
+            
+            <!-- ContentEditable Rich Text Editor -->
+            <div id="note" contenteditable="true" placeholder="Write your note here..."></div>
+
+            <div id="buttons">
+                <button id="save">💾 Save Note</button>
+                <button id="save-as">📁 Save As</button>
+                <button id="open-file">📂 Open File</button>
+                <button id="export-pdf">📄 Export PDF</button>
+                <button id="font-increase">🔠 A+</button>
+                <button id="font-decrease">🔠 A-</button>
+                <button id="dark-mode-toggle">🌙 Toggle Dark Mode</button>
+                <button id="delete-note" class="danger">🗑️ Delete Note</button>
+            </div>
+
+            <div class="editor-footer">
+                <p id="save_status">Ready</p>
+                <p id="word_count">Word: 0 | Characters: 0</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-sidebar: #0f172a;
+            --bg-editor: #ffffff;
+            --bg-note-item: #1e293b;
+            --bg-note-item-hover: #334155;
+            --bg-note-item-active: #475569;
+            --text-primary: #0f172a;
+            --text-sidebar: #f8fafc;
+            --text-muted: #64748b;
+            --border-color: #cbd5e1;
+            --button-bg: #0d9488;
+            --button-hover: #0f766e;
+            --danger-bg: #e11d48;
+            --danger-hover: #be123c;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        body.dark-mode {
+            --bg-primary: #090d16;
+            --bg-sidebar: #05070b;
+            --bg-editor: #0f172a;
+            --bg-note-item: #1e293b;
+            --bg-note-item-hover: #334155;
+            --bg-note-item-active: #0d9488;
+            --text-primary: #f8fafc;
+            --text-sidebar: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --button-bg: #0d9488;
+            --button-hover: #14b8a6;
+            --danger-bg: #e11d48;
+            --danger-hover: #fb7185;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        #app {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        #sidebar {
+            width: 300px;
+            background: var(--bg-sidebar);
+            color: var(--text-sidebar);
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            gap: 12px;
+            overflow-y: auto;
+            border-right: 1px solid var(--border-color);
+            box-shadow: var(--shadow-md);
+        }
+
+        .sidebar-header h2 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            margin-bottom: 8px;
+        }
+
+        /* Sidebar Tabs */
+        .sidebar-tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px;
+            border-radius: 8px;
+            gap: 4px;
+        }
+
+        .sidebar-tabs button {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            background: transparent;
+            color: var(--text-sidebar);
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-tabs button:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-tabs button.active {
+            background: var(--button-bg);
+            color: #ffffff;
+            box-shadow: var(--shadow-sm);
+        }
+
+        #search {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-sidebar);
+            font-size: 14px;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #search:focus {
+            border-color: var(--button-bg);
+        }
+
+        #new-note {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            background: var(--button-bg);
+            color: #fff;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        #new-note:hover {
+            background: var(--button-hover);
+        }
+
+        #new-note:active {
+            transform: scale(0.98);
+        }
+
+        #notes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+            margin-top: 8px;
+            overflow-y: auto;
+        }
+
+        /* Note Items */
+        .note-item {
+            background: var(--bg-note-item);
+            padding: 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            border-left: 4px solid transparent;
+            position: relative;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-sm);
+            color: #ffffff;
+        }
+
+        .note-item:hover {
+            background: var(--bg-note-item-hover);
+            transform: translateY(-1px);
+        }
+
+        .note-item.active {
+            border-left: 4px solid #14b8a6;
+            background: var(--bg-note-item-active);
+        }
+
+        .note-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 6px;
+        }
+
+        .note-title {
+            font-weight: 600;
+            font-size: 15px;
+            word-break: break-word;
+            flex: 1;
+            padding-right: 20px;
+        }
+
+        .note-date {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .delete-note, .restore-note {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #ff4a4a;
+            padding: 4px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+            margin-left: 4px;
+        }
+
+        .restore-note {
+            color: #2ecc71;
+        }
+
+        .delete-note:hover {
+            background: var(--danger-bg);
+            color: white;
+        }
+
+        .restore-note:hover {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .danger {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            background: var(--danger-bg);
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .danger:hover {
+            background: var(--danger-hover);
+        }
+
+        #toggle-dark {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-sidebar);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+
+        #toggle-dark:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Editor */
+        #editor {
+            flex: 1;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background: var(--bg-editor);
+            overflow-y: auto;
+        }
+
+        #editor h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: var(--text-primary);
+        }
+
+        /* Trash Banner styling */
+        #trash-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #e11d48;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: var(--shadow-md);
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .trash-banner-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        #trash-banner button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        #banner-restore {
+            background: #ffffff;
+            color: #e11d48;
+        }
+
+        #banner-restore:hover {
+            background: #f8fafc;
+        }
+
+        #banner-delete-perm {
+            background: #9f1239;
+            color: white;
+        }
+
+        #banner-delete-perm:hover {
+            background: #881337;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        #note-title {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 22px;
+            font-weight: 600;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #note-title:focus {
+            border-color: var(--button-bg);
+        }
+
+        #note-title:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        /* Rich Text Editor Elements */
+        #toolbar {
+            display: flex;
+            gap: 6px;
+            padding: 8px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            align-items: center;
+        }
+
+        .tool-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .tool-btn:hover {
+            background: var(--border-color);
+        }
+
+        .tool-btn.active {
+            background: var(--button-bg);
+            color: white;
+        }
+
+        #note {
+            flex: 1;
+            width: 100%;
+            padding: 20px;
+            font-size: 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 0 0 8px 8px;
+            line-height: 1.6;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-y: auto;
+            outline: none;
+            min-height: 200px;
+            transition: border-color 0.2s;
+        }
+
+        #note:focus {
+            border-color: var(--button-bg);
+        }
+
+        /* Placeholder emulation for contenteditable */
+        #note:empty::before {
+            content: attr(placeholder);
+            color: var(--text-muted);
+            cursor: text;
+        }
+
+        #buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        #buttons button {
+            padding: 10px 16px;
+            border: none;
+            background: var(--button-bg);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        #buttons button:hover {
+            background: var(--button-hover);
+        }
+
+        #buttons button.danger {
+            background: var(--danger-bg);
+        }
+
+        #buttons button.danger:hover {
+            background: var(--danger-hover);
+        }
+
+        #buttons button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .editor-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        #save_status {
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        #word_count {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+    </style>
+</body>
+
+</html>
