@@ -1,17 +1,32 @@
 {
   "name": "quick-note-taker",
   "version": "1.0.0",
+  "description": "A simple but powerful note taking app",
   "main": "main.js",
+  "author": "Group 8 - Software Engineering Project",
   "scripts": {
-    "start": "electron .",
-    "dev": "electron ."
+    "start": "electron . --disable-gpu --no-sandbox",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:all": "electron-builder --win --mac"
+  },
+  "build": {
+    "appId": "com.sujankhadka.quicknotetaker",
+    "productName": "Quick Note Taker",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "build/icon.icns"
+    }
   },
   "devDependencies": {
-    "electron": "^40.10.0"
-  },
-  "description": "",
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs"
+    "electron": "^40.8.2",
+    "electron-builder": "^25.1.8"
+  }
 }

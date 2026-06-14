@@ -5,6 +5,7 @@ const settingFilepath = path.join(app.getPath('userData'), 'settings.json');
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('disable-gpu-cache');
 
+
 function createWindow() {
     const win = new BrowserWindow({
         width: 900,
@@ -317,4 +318,38 @@ ipcMain.handle('show-confirm-dialog', async (event, message, title) => {
         message: message
     });
     return result.response === 0;
+    
+});
+ipcMain.handle('print-note', async (event, html, title) => {
+    const printWin = new BrowserWindow({ show: false });
+    await printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+
+    printWin.webContents.print(
+        { silent: false, printBackground: true },
+        (success, errorType) => {
+            if (!success) console.error('Print failed:', errorType);
+            printWin.close();
+        }
+    );
+});
+
+ipcMain.handle('toggle-pin', async (event, noteId) => {
+    const notes = loadNotes();
+
+    const note = notes.find(n => String(n.id) === String(noteId));
+
+    if (!note) {
+        return { success: false };
+    }
+
+    note.pinned = !(note.pinned === true);
+
+    note.updatedAt = new Date().toISOString();
+
+    saveNotes(notes);
+
+    return {
+        success: true,
+        pinned: note.pinned
+    };
 });

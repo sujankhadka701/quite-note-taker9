@@ -6,8 +6,8 @@ window.addEventListener('DOMContentLoaded', async () => {
         const statusEl = document.getElementById('save_status');
         const saveAsBtn = document.getElementById('save-as');
         const newNoteBtn = document.getElementById('new-note');
-        const deleteBtn = document.getElementById('delete-note'); // single note delete
-        const deleteAllBtn = document.getElementById('delete-all'); // delete all notes / empty trash
+        const deleteBtn = document.getElementById('delete-note');
+        const deleteAllBtn = document.getElementById('delete-all');
         const openFileBtn = document.getElementById('open-file');
         const exportPdfBtn = document.getElementById('export-pdf');
         const noteList = document.getElementById('notes-list');
@@ -24,7 +24,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         const bannerDeletePermBtn = document.getElementById('banner-delete-perm');
         const toolbar = document.getElementById('toolbar');
         const categoryInput = document.getElementById('note-category');
-
+        const categoryFilterEl = document.getElementById('category-filter');
+        const result = await window.electronAPI.togglePin(note.id);
+        
         // State
         let notes = [];
         let currentNoteId = null;
@@ -45,6 +47,23 @@ window.addEventListener('DOMContentLoaded', async () => {
             return `hsl(${hue}, 60%, 40%)`;
         }
 
+        function updateCategoryFilter() {
+            const currentValue = categoryFilterEl.value;
+            const categories = [...new Set(notes.map(n => n.category).filter(Boolean))];
+            categoryFilterEl.innerHTML = '<option value="">All Categories</option>';
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                if (cat === currentValue) option.selected = true;
+                categoryFilterEl.appendChild(option);
+            });
+        }
+
+        categoryFilterEl.addEventListener('change', () => {
+            renderNoteList(searchInput.value);
+        });
+
         // Word count
         function updateWordCount() {
             const text = noteEditor.innerText || '';
@@ -54,6 +73,9 @@ window.addEventListener('DOMContentLoaded', async () => {
             wordCountEl.textContent = `Word : ${words} | Characters: ${characters}`;
         }
 
+        // FIX: applyFontSize and applyDarkMode moved OUT of renderNoteList — they were
+        // accidentally nested inside the first (broken) renderNoteList definition, putting
+        // them out of scope for all callers.
         function applyFontSize(size) {
             currentFontSize = Math.min(32, Math.max(10, size));
             noteEditor.style.fontSize = `${currentFontSize}px`;
@@ -84,16 +106,14 @@ window.addEventListener('DOMContentLoaded', async () => {
 
         async function loadAllNotes() {
             notes = await window.electronAPI.getNotes() || [];
-            // Make sure all notes have updated structures
             notes = notes.map(n => ({
                 ...n,
                 isTrashed: n.isTrashed || false,
                 content: n.content || ''
             }));
-            
-            // Find most recent note depending on the current tab
+
             const activeNotes = notes.filter(n => currentTab === 'notes' ? !n.isTrashed : n.isTrashed);
-            
+
             if (activeNotes.length > 0) {
                 const mostRecent = activeNotes.reduce((a, b) =>
                     new Date(a.updatedAt) > new Date(b.updatedAt) ? a : b
@@ -113,6 +133,8 @@ window.addEventListener('DOMContentLoaded', async () => {
                 id: Date.now().toString(),
                 title: 'Untitled',
                 content: '',
+                category: '',
+                pinned: false,
                 isTrashed: false,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
@@ -137,16 +159,13 @@ window.addEventListener('DOMContentLoaded', async () => {
             newNoteBtn.style.display = 'block';
             deleteAllBtn.textContent = '🗑️ Delete All';
             deleteAllBtn.classList.add('danger');
-            
-            // Hide trash banner
+
             trashBanner.style.display = 'none';
-            
-            // Enable editor controls
+
             noteEditor.contentEditable = "true";
             titleInput.disabled = false;
             toolbar.style.display = 'flex';
-            
-            // Enable normal buttons
+
             saveBtn.disabled = false;
             saveAsBtn.disabled = false;
             openFileBtn.disabled = false;
@@ -164,20 +183,17 @@ window.addEventListener('DOMContentLoaded', async () => {
             newNoteBtn.style.display = 'none';
             deleteAllBtn.textContent = '🗑️ Empty Trash';
             deleteAllBtn.classList.remove('danger');
-            
-            // Show trash banner if we have a selected note
+
             if (currentNoteId) {
                 trashBanner.style.display = 'flex';
             } else {
                 trashBanner.style.display = 'none';
             }
-            
-            // Disable editor controls
+
             noteEditor.contentEditable = "false";
             titleInput.disabled = true;
             toolbar.style.display = 'none';
-            
-            // Disable normal buttons
+
             saveBtn.disabled = true;
             saveAsBtn.disabled = true;
             openFileBtn.disabled = true;
@@ -221,6 +237,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                 id: Date.now().toString(),
                 title: 'Untitled',
                 content: '',
+                category: '',
                 isTrashed: false,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
@@ -229,6 +246,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             notes.unshift(newNote);
             currentNoteId = newNote.id;
             titleInput.value = '';
+            categoryInput.value = '';
             noteEditor.innerHTML = '';
             lastSavedContent = '';
             renderNoteList(searchInput.value);
@@ -251,7 +269,6 @@ window.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // Delete single active note / permanently delete a trashed note
         deleteBtn.addEventListener('click', async () => {
             if (!currentNoteId) return;
             if (currentTab === 'notes') {
@@ -329,7 +346,6 @@ window.addEventListener('DOMContentLoaded', async () => {
             updateFormattingState();
         });
 
-        // Listen to selection changes to highlight formatting buttons
         document.addEventListener('selectionchange', () => {
             updateFormattingState();
         });
@@ -342,12 +358,11 @@ window.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        // Auto Save function
         async function autoSave() {
             if (currentTab !== 'notes' || !currentNoteId) return;
             const currentContent = noteEditor.innerHTML;
             const note = notes.find(n => n.id && currentNoteId && String(n.id) === String(currentNoteId));
-            
+
             if (currentContent === lastSavedContent && note && note.title === titleInput.value) {
                 if (statusEl) statusEl.textContent = 'No changes - already saved';
                 return;
@@ -379,7 +394,6 @@ window.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // Search input listener
         searchInput.addEventListener('input', () => {
             renderNoteList(searchInput.value);
         });
@@ -389,19 +403,27 @@ window.addEventListener('DOMContentLoaded', async () => {
             return doc.body.textContent || "";
         }
 
+        // FIX: Single, correct definition of renderNoteList. The original had two definitions:
+        // the first was incomplete (missing closing braces, contained misplaced functions,
+        // orphaned sort logic that never rendered anything), and the second was the real one.
         function renderNoteList(filter = '') {
             noteList.innerHTML = '';
             const categoryFilter = categoryFilterEl.value;
             let filtered = notes.filter(note => {
-            
-                const matchesSearch = filter.trim() === ''
-                ||
+                const inCurrentTab = currentTab === 'notes' ? !note.isTrashed : note.isTrashed;
+                const matchesSearch = filter.trim() === '' ||
                     (note.title || '').toLowerCase().includes(filter.toLowerCase()) ||
                     (note.content || '').toLowerCase().includes(filter.toLowerCase());
-              
                 const matchesCategory = categoryFilter.trim() === '' ||
                     (note.category || '') === categoryFilter;
-                return matchesSearch && matchesCategory;
+                return inCurrentTab && matchesSearch && matchesCategory;
+            });
+
+            // FIX: sort was in the dead first definition; moved here where it belongs
+            filtered.sort((a, b) => {
+                if (a.pinned && !b.pinned) return -1;
+                if (!a.pinned && b.pinned) return 1;
+                return new Date(b.updatedAt) - new Date(a.updatedAt);
             });
 
             if (filtered.length === 0) {
@@ -411,26 +433,51 @@ window.addEventListener('DOMContentLoaded', async () => {
                 emptyMsg.style.padding = '20px';
                 emptyMsg.textContent = currentTab === 'notes' ? 'No active notes' : 'Trash is empty';
                 noteList.appendChild(emptyMsg);
+                updateCategoryFilter();
                 return;
             }
 
             filtered.forEach(note => {
                 const item = document.createElement('div');
-                item.className = 'note-item' + (String(note.id) === String(currentNoteId) ? ' active' : '');
-                
+                item.className = 'note-item' + (note.id === currentNoteId ? ' active' : '');
+
                 if (currentTab === 'notes') {
+                    const categoryColor = getCategoryColor(note.category);
+                    // FIX: badgeHtml is now actually inserted into the template (was built but dropped)
+                    const badgeHtml = note.category
+                        ? `<span class="category-badge" style="background-color: ${categoryColor};">${note.category}</span>`
+                        : '';
+                    // FIX: added missing closing </div> for .note-item-header
                     item.innerHTML = `
                         <div class="note-item-header">
-                            <div class="note-title">${note.title || 'Untitled'}</div>
+                            <div class="note-item-title">${note.pinned ? '📌 ' : ''}${note.title || 'Untitled'}</div>
                             <button class="delete-note" data-id="${note.id}" title="Move to Trash">🗑️</button>
+                            <button class="pin-note" data-id="${note.id}" title="${note.pinned ? 'Unpin Note' : 'Pin Note'}">${note.pinned ? '📌' : '📍'}</button>
+                            <div class="note-item-date">${new Date(note.updatedAt).toLocaleString()}</div>
                         </div>
-                        <div class="note-date">${new Date(note.updatedAt).toLocaleString()}</div>
+                        ${badgeHtml}
                     `;
                     item.querySelector('.delete-note').addEventListener('click', async (e) => {
                         e.stopPropagation();
                         await moveNoteToTrash(note.id);
                     });
+                    item.querySelector('.pin-note').addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const result = await window.electronAPI.togglePin(note.id);
+                        if (result.success) {
+                            const index = notes.findIndex(n => n.id === note.id);
+                            if (index !== -1) {
+                                notes[index].pinned = result.pinned;
+                                renderNoteList(searchInput.value);
+                            }
+                        }
+                    });
                 } else {
+                    const categoryColor = getCategoryColor(note.category);
+                    // FIX: badgeHtml is now actually inserted into the template
+                    const badgeHtml = note.category
+                        ? `<span class="category-badge" style="background-color: ${categoryColor};">${note.category}</span>`
+                        : '';
                     item.innerHTML = `
                         <div class="note-item-header">
                             <div class="note-title">${note.title || 'Untitled'}</div>
@@ -439,6 +486,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                                 <button class="delete-note" data-id="${note.id}" title="Delete Permanently">❌</button>
                             </div>
                         </div>
+                        ${badgeHtml}
                         <div class="note-date">${new Date(note.updatedAt).toLocaleString()}</div>
                     `;
                     item.querySelector('.restore-note').addEventListener('click', async (e) => {
@@ -458,6 +506,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 
                 noteList.appendChild(item);
             });
+
+            updateCategoryFilter();
         }
 
         async function switchNote(id) {
@@ -474,7 +524,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             categoryInput.value = note.category || '';
             lastSavedContent = note.content || '';
             statusEl.textContent = '';
-            
+
             if (currentTab === 'trash') {
                 trashBanner.style.display = 'flex';
                 noteEditor.contentEditable = "false";
@@ -492,6 +542,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         function clearEditor() {
             currentNoteId = null;
             titleInput.value = '';
+            categoryInput.value = '';
             noteEditor.innerHTML = '';
             lastSavedContent = '';
             trashBanner.style.display = 'none';
@@ -503,8 +554,9 @@ window.addEventListener('DOMContentLoaded', async () => {
             const note = {
                 id: currentNoteId,
                 title: titleInput.value || 'Untitled',
-                content: textarea.value,
-                category: categoryInput.value.value.trim() || '',
+                content: noteEditor.innerHTML,
+                category: categoryInput.value.trim() || '',
+                pinned: existingNote ? existingNote.pinned || false : false,
                 isTrashed: false
             };
             await window.electronAPI.saveNoteJson(note);
@@ -523,12 +575,12 @@ window.addEventListener('DOMContentLoaded', async () => {
                 notes[index].isTrashed = true;
                 notes[index].updatedAt = new Date().toISOString();
                 await window.electronAPI.saveNoteJson(notes[index]);
-                
+
                 if (currentNoteId && id && String(currentNoteId) === String(id)) {
                     currentNoteId = null;
                     clearEditor();
                 }
-                
+
                 statusEl.textContent = 'Note moved to Trash Bin.';
                 await loadAllNotes();
             }
@@ -540,7 +592,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                 notes[index].isTrashed = false;
                 notes[index].updatedAt = new Date().toISOString();
                 await window.electronAPI.saveNoteJson(notes[index]);
-                
+
                 if (currentNoteId && id && String(currentNoteId) === String(id)) {
                     currentNoteId = null;
                     clearEditor();
@@ -557,7 +609,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
             await window.electronAPI.deleteNoteJson(id);
             notes = notes.filter(n => n.id && id ? String(n.id) !== String(id) : true);
-            
+
             if (currentNoteId && id && String(currentNoteId) === String(id)) {
                 currentNoteId = null;
                 clearEditor();
@@ -580,6 +632,11 @@ window.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
+        document.getElementById('print-note').addEventListener('click', async () => {
+            if (!currentNoteId) return;
+            await window.electronAPI.printNote(noteEditor.innerHTML, titleInput.value || 'Untitled');
+        });
+
         // Menu action listeners
         window.electronAPI.onMenuAction('menu-new-note', () => {
             if (currentTab === 'notes') newNoteBtn.click();
@@ -590,15 +647,13 @@ window.addEventListener('DOMContentLoaded', async () => {
         window.electronAPI.onMenuAction('menu-save', () => {
             if (currentTab === 'notes') saveBtn.click();
         });
-        window.electronAPI.onMenuAction('menu-open-file', () => {
-            if (currentTab === 'notes') openFileBtn.click();
-        });
         window.electronAPI.onMenuAction('menu-save-as', () => {
             if (currentTab === 'notes') saveAsBtn.click();
         });
         window.electronAPI.onMenuAction('menu-export-pdf', () => {
             exportPdfBtn.click();
         });
+
     } catch (err) {
         console.error('Renderer initialization failed:', err);
         alert('Renderer initialization failed: ' + err.message);

@@ -4,77 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <title>📝 Quick Note Taker</title>
-    <!-- Google Fonts for premium typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-</head>
-
-<body>
-    <div id="app">
-        <aside id="sidebar">
-            <div class="sidebar-header">
-                <h2>📝 Note Taker</h2>
-            </div>
-            
-            <!-- Sidebar Tabs for Active Notes vs Trash Bin -->
-            <div class="sidebar-tabs">
-                <button id="tab-notes" class="active">📝 Notes</button>
-                <button id="tab-trash">🗑️ Trash Bin</button>
-            </div>
-
-            <button id="new-note">➕ New Note</button>
-            <input type="text" id="search" placeholder="🔍 Search notes...">
-            <div id="notes-list"></div>
-            
-            <button id="delete-all" class="danger">🗑️ Delete All</button>
-            <button id="toggle-dark">🌙 Toggle Dark Mode</button>
-        </aside>
-
-        <div id="editor">
-            <!-- Trash Banner for trashed notes -->
-            <div id="trash-banner" style="display: none;">
-                <span>🗑️ This note is in the Trash.</span>
-                <div class="trash-banner-actions">
-                    <button id="banner-restore">♻️ Restore Note</button>
-                    <button id="banner-delete-perm" class="danger-btn">🗑️ Delete Permanently</button>
-                </div>
-            </div>
-
-            <h1>📝 Quick Note Taker</h1>
-
-            <input id="note-title" type="text" placeholder="Note title">
-            
-            <!-- Rich Text Editor Toolbar -->
-            <div id="toolbar">
-                <button id="format-bold" class="tool-btn" title="Bold (Ctrl+B)"><b>B</b></button>
-                <button id="format-italic" class="tool-btn" title="Italic (Ctrl+I)"><i>I</i></button>
-                <button id="format-underline" class="tool-btn" title="Underline (Ctrl+U)"><u>U</u></button>
-            </div>
-            
-            <!-- ContentEditable Rich Text Editor -->
-            <div id="note" contenteditable="true" placeholder="Write your note here..."></div>
-
-            <div id="buttons">
-                <button id="save">💾 Save Note</button>
-                <button id="save-as">📁 Save As</button>
-                <button id="open-file">📂 Open File</button>
-                <button id="export-pdf">📄 Export PDF</button>
-                <button id="font-increase">🔠 A+</button>
-                <button id="font-decrease">🔠 A-</button>
-                <button id="dark-mode-toggle">🌙 Toggle Dark Mode</button>
-                <button id="delete-note" class="danger">🗑️ Delete Note</button>
-            </div>
-
-            <div class="editor-footer">
-                <p id="save_status">Ready</p>
-                <p id="word_count">Word: 0 | Characters: 0</p>
-            </div>
-        </div>
-    </div>
-
-    <script src="renderer.js"></script>
-
     <style>
         * {
             box-sizing: border-box;
@@ -200,6 +132,16 @@
 
         #search:focus {
             border-color: var(--button-bg);
+        }
+
+        #category-filter {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-note-item);
+            color: var(--text-sidebar);
+            font-size: 12px;
+            border-radius: 6px;
         }
 
         #new-note {
@@ -352,7 +294,7 @@
             color: var(--text-primary);
         }
 
-        /* Trash Banner styling */
+        /* Trash Banner */
         #trash-banner {
             display: flex;
             align-items: center;
@@ -427,7 +369,38 @@
             cursor: not-allowed;
         }
 
-        /* Rich Text Editor Elements */
+        /* Note Category Input (in editor) */
+        #note-category {
+            width: 200px;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 14px;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #note-category:focus {
+            border-color: var(--button-bg);
+        }
+
+        #note-category:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .category-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            color: white;
+            margin-left: 3px;
+        }
+
+        /* Toolbar */
         #toolbar {
             display: flex;
             gap: 6px;
@@ -483,7 +456,6 @@
             border-color: var(--button-bg);
         }
 
-        /* Placeholder emulation for contenteditable */
         #note:empty::before {
             content: attr(placeholder);
             color: var(--text-muted);
@@ -547,6 +519,82 @@
             font-size: 13px;
         }
     </style>
+</head>
+
+<body>
+    <div id="app">
+        <aside id="sidebar">
+            <div class="sidebar-header">
+                <h2>📝 Note Taker</h2>
+            </div>
+
+            <!-- Sidebar Tabs -->
+            <div class="sidebar-tabs">
+                <button id="tab-notes" class="active">📝 Notes</button>
+                <button id="tab-trash">🗑️ Trash Bin</button>
+            </div>
+
+            <button id="new-note">➕ New Note</button>
+            <input type="text" id="search" placeholder="🔍 Search notes...">
+
+            <!-- FIX: category-filter now lives inside the sidebar, not floating outside -->
+            <select id="category-filter">
+                <option value="">All Categories</option>
+            </select>
+
+            <div id="notes-list"></div>
+
+            <button id="delete-all" class="danger">🗑️ Delete All</button>
+            <button id="toggle-dark">🌙 Toggle Dark Mode</button>
+        </aside>
+
+        <div id="editor">
+            <!-- Trash Banner -->
+            <div id="trash-banner" style="display: none;">
+                <span>🗑️ This note is in the Trash.</span>
+                <div class="trash-banner-actions">
+                    <button id="banner-restore">♻️ Restore Note</button>
+                    <button id="banner-delete-perm" class="danger-btn">🗑️ Delete Permanently</button>
+                </div>
+            </div>
+
+            <h1>📝 Quick Note Taker</h1>
+
+            <input id="note-title" type="text" placeholder="Note title">
+
+            <!-- FIX: note-category now lives inside the editor, was missing from HTML entirely -->
+            <input id="note-category" type="text" placeholder="Category (e.g. Work, Personal...)">
+
+            <!-- Rich Text Editor Toolbar -->
+            <div id="toolbar">
+                <button id="format-bold" class="tool-btn" title="Bold (Ctrl+B)"><b>B</b></button>
+                <button id="format-italic" class="tool-btn" title="Italic (Ctrl+I)"><i>I</i></button>
+                <button id="format-underline" class="tool-btn" title="Underline (Ctrl+U)"><u>U</u></button>
+            </div>
+
+            <!-- ContentEditable Rich Text Editor -->
+            <div id="note" contenteditable="true" placeholder="Write your note here..."></div>
+
+            <div id="buttons">
+                <button id="save">💾 Save Note</button>
+                <button id="save-as">📁 Save As</button>
+                <button id="open-file">📂 Open File</button>
+                <button id="export-pdf">📄 Export PDF</button>
+                <button id="font-increase">🔠 A+</button>
+                <button id="font-decrease">🔠 A-</button>
+                <button id="dark-mode-toggle">🌙 Toggle Dark Mode</button>
+                <button id="delete-note" class="danger">🗑️ Delete Note</button>
+                <button id="print-note">🖨️ Print Note</button>
+            </div>
+
+            <div class="editor-footer">
+                <p id="save_status">Ready</p>
+                <p id="word_count">Word: 0 | Characters: 0</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
 </body>
 
 </html>

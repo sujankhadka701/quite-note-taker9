@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveNote: (text) => ipcRenderer.invoke('save-note', text),
     loadNote: () => ipcRenderer.invoke('load-note'),
     deleteNote: () => ipcRenderer.invoke('delete-note'),
+    togglePin: (id) => ipcRenderer.invoke('toggle-pin', id),
 
     // New features
     saveAs: (text) => ipcRenderer.invoke('save-as', text),
@@ -19,5 +20,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveNoteJson: (note) => ipcRenderer.invoke('save-note-json', note),
     deleteNoteJson: (id) => ipcRenderer.invoke('delete-note-json', id),
     exportPDF: (htmlContent, title) => ipcRenderer.invoke('export-pdf', htmlContent, title),
-    showConfirmDialog: (message, title) => ipcRenderer.invoke('show-confirm-dialog', message, title)
+    showConfirmDialog: (message, title) => ipcRenderer.invoke('show-confirm-dialog', message, title),
+    printNote: (htmlContent, title) => ipcRenderer.invoke('print-note', htmlContent, title)
 });
