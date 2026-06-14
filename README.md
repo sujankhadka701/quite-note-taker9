@@ -85,19 +85,60 @@ Allows users to restore deleted notes from the Trash Bin or permanently delete t
 
 ## 5.4 How to Run the App
 
-1. Install Node.js from https://nodejs.org
-2. Open a terminal in the project folder.
-3. Run:
+Follow these steps to run the application from the source code:
+
+### Step 1: Install Node.js
+
+Download and install Node.js from:
+
+https://nodejs.org
+
+After installation, verify it is installed correctly by opening a terminal and running:
+
+```bash
+node -v
+npm -v
+```
+
+### Step 2: Open the Project Folder
+
+Open a terminal (Command Prompt, PowerShell, or VS Code Terminal) and navigate to the project folder:
+
+```bash
+cd path/to/Quick-Note-Taker
+```
+
+### Step 3: Install Dependencies
+
+Install all required packages listed in `package.json`:
 
 ```bash
 npm install
 ```
 
-4. Run:
+Wait until the installation process is completed.
+
+### Step 4: Start the Application
+
+Run the Electron application using:
 
 ```bash
 npm start
 ```
+
+### Step 5: Use the Application
+
+Once the application launches:
+
+* Create and edit notes.
+* Format text using Bold, Italic, and Underline.
+* Organize notes using categories.
+* Print notes directly.
+* Export notes as PDF files.
+* Restore deleted notes from the Trash Bin.
+* Permanently delete unwanted notes.
+
+The Quick Note Taker application is now ready to use.
 
 5. The application will launch automatically.
 
@@ -107,9 +148,20 @@ npm start
 
 ### Windows
 
-1. Open the `dist/` folder.
-2. Run the generated `.exe` file.
-3. If an installer opens, follow the installation instructions.
-4. If the application launches directly, it is a portable version and no installation is required.
+## Windows
 
-After installation, launch the application from the Desktop shortcut or Start Menu.
+1. Navigate to the `dist/` folder after building the application.
+2. Double-click the generated `.exe` file.
+3. If an installer window appears, follow the on-screen installation instructions.
+4. If the application opens directly, it is a portable version and no installation is required.
+5. Launch Quick Note Taker from the Desktop shortcut, Start Menu, or by opening the portable `.exe` file.
+
+### Build the Installer (For Developers)
+
+Run the following command:
+
+```bash
+npm run dist
+```
+
+This will generate the packaged application inside the `dist/` folder.
