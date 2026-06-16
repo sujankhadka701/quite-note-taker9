@@ -25,8 +25,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         const toolbar = document.getElementById('toolbar');
         const categoryInput = document.getElementById('note-category');
         const categoryFilterEl = document.getElementById('category-filter');
-        const result = await window.electronAPI.togglePin(note.id);
-        
+
         // State
         let notes = [];
         let currentNoteId = null;
@@ -551,6 +550,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
         async function saveCurrentNote() {
             if (!currentNoteId || currentTab !== 'notes') return;
+            const existingNote = notes.find(n => n.id && currentNoteId && String(n.id) === String(currentNoteId));
             const note = {
                 id: currentNoteId,
                 title: titleInput.value || 'Untitled',
